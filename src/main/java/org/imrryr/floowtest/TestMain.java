@@ -29,6 +29,9 @@ public class TestMain {
 		WordCounter count = new WordCounter();
 		count.doCount(mongo);
 
+		ResultQuery query = new ResultQuery();
+		query.readResults(mongo);
+
 		mongo.close();
 	}
 
