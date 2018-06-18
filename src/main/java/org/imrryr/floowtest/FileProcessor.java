@@ -9,6 +9,7 @@ import java.io.IOException;
 
 import org.bson.Document;
 
+import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
@@ -19,8 +20,10 @@ import com.mongodb.client.MongoDatabase;
  */
 public class FileProcessor {
 
-	public void readFile(MongoDatabase db, String filename) {
+	public void readFile(MongoClient mongo, String filename) {
 		
+		MongoDatabase db = mongo.getDatabase("test1");
+
 		/* Drop collection to clean it out then recreate. */
 		db.getCollection("testfiles").drop();
 		MongoCollection<Document> coll = db.getCollection("testfiles");
