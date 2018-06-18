@@ -16,4 +16,5 @@ targetCompatibility = 1.8
 dependencies {
     compile("org.mongodb:mongo-java-driver:3.7.1")
     compile("commons-cli:commons-cli:1.4")
+    compile("commons-codec:commons-codec:1.11")
 }
