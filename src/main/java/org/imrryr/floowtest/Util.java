@@ -4,6 +4,8 @@
 package org.imrryr.floowtest;
 
 import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Updates.combine;
+import static com.mongodb.client.model.Updates.set;
 import static org.apache.commons.codec.digest.MessageDigestAlgorithms.MD5;
 
 import java.util.ArrayList;
@@ -12,7 +14,6 @@ import java.util.List;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.bson.Document;
 
-import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
@@ -52,14 +53,32 @@ public class Util {
 		return hash;
 	}
 
-	public static Document getControlRecord(MongoClient mongo, String filehash) {
+	/**
+	 * Retrieve the control record for the specified file.
+	 * @param db MongoDatabase instance.
+	 * @param filehash Hash string to identify file.
+	 * @return Document containing status record.
+	 */
+	public static Document getControlRecord(MongoDatabase db, String filehash) {
 		Document doc = null;
-		MongoDatabase db = mongo.getDatabase(DATABASE);
 		MongoCollection<Document> control = db.getCollection(CONTROL);
 		List<Document> record = control.find(eq("key", filehash)).into(new ArrayList<>());
 		if(record.size() > 0) {
 			doc = record.get(0);
 		}
 		return doc;
+	}
+
+	/**
+	 * Update the control record for the specified file.
+	 * @param db MongoDatabase instance
+	 * @param filehash Hash string to identify file
+	 * @param status New status value.
+	 */
+	public static void updateControlStatus(MongoDatabase db, String filehash, String status) {
+		MongoCollection<Document> control = db.getCollection(CONTROL);
+		control.updateOne(
+				eq("key", filehash), 
+				combine(set("status", status)));
 	}
 }

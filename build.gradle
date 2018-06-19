@@ -4,6 +4,13 @@ apply plugin: 'eclipse'
 jar {
 	baseName = 'floowtest'
 	version = '0.1'
+	manifest {
+		attributes 'Main-Class': 'org.imrryr.floowtest.TestMain'
+	}
+
+	from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }
 
 repositories {

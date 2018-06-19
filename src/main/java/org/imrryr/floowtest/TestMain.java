@@ -58,13 +58,22 @@ public class TestMain {
 		 * then we need to load it. If a record exists, another instance of the program
 		 * is loading or has loaded it.
 		 */
-		if(!existingFile(mongo, filehash, filename)) {
-				FileProcessor fr = new FileProcessor();
-				fr.readFile(db, filehash, filename);
+		
+		Document ctrl = Util.getControlRecord(db, filehash);
+		if (ctrl == null) {
+			Document d = new Document("key", filehash)
+					.append("filename", filename)
+					.append("status", Util.LOADING);
+
+			MongoCollection<Document> control = db.getCollection(Util.CONTROL);
+			control.insertOne(d);
+			
+			FileProcessor fr = new FileProcessor();
+			fr.readFile(db, filehash, filename);
 		}
 		
-		WordCounter count = new WordCounter();
-		count.doCount(db, filehash);
+		WordCounter count = new WordCounter(db);
+		count.doCount(filehash);
 
 		ResultQuery query = new ResultQuery(db, filehash);
 		query.printMostCommon();
@@ -80,17 +89,17 @@ public class TestMain {
 	 * @param mongo MongoClient instance
 	 * @param filename Name of file to check
 	 * @return true if file is already being loaded.
-	 */
-	private static boolean existingFile(MongoClient mongo, String filehash, String filename) {
+	 *
+	private static boolean existingFile(MongoDatabase db, String filehash, String filename) {
 		boolean retval = true;
 
-		Document record = Util.getControlRecord(mongo, filehash);
+		Document record = Util.getControlRecord(db, filehash);
 		if (record == null) {
 			System.out.println("New file so do the loading.");
 			Document d = new Document("key", filehash)
 					.append("filename", filename)
 					.append("status", Util.LOADING);
-			MongoDatabase db = mongo.getDatabase(Util.DATABASE);
+
 			MongoCollection<Document> control = db.getCollection(Util.CONTROL);
 			control.insertOne(d);
 			retval = false;
@@ -100,5 +109,5 @@ public class TestMain {
 		}
 
 		return retval;
-	}
+	}*/
 }

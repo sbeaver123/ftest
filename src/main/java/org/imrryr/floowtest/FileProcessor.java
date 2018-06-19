@@ -3,10 +3,6 @@
  */
 package org.imrryr.floowtest;
 
-import static com.mongodb.client.model.Filters.eq;
-import static com.mongodb.client.model.Updates.combine;
-import static com.mongodb.client.model.Updates.set;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -41,9 +37,7 @@ public class FileProcessor {
 			e.printStackTrace();
 		}
 
-		MongoCollection<Document> control = db.getCollection(Util.CONTROL);
-		control.updateOne(
-				eq("key", filehash), 
-				combine(set("status", Util.LOADCOMPLETE)));
+		/* Update control record to show file processing is complete. */
+		Util.updateControlStatus(db, filehash, Util.LOADCOMPLETE);
 	}
 }
