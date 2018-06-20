@@ -1,7 +1,9 @@
-/**
- * (c) Simon Beaver 2018
- */
+
 package org.imrryr.floowtest;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -9,6 +11,8 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
@@ -22,11 +26,16 @@ import com.mongodb.client.MongoDatabase;
  */
 public class TestMain {
 
+	private static final Logger logger = LoggerFactory.getLogger(TestMain.class);
+
 	/**
+	 * Main execution method
+	 * 
 	 * @param args Command line arguments.
 	 */
 	public static void main(String[] args) {
 
+		logger.debug("Program start.");
 		Options options = new Options();
 		options.addOption("source", true, "The name of the file to be processed");
 		options.addOption("mongo", true, "The URL of the MongoDB server to use <hostname:port>");
@@ -41,7 +50,7 @@ public class TestMain {
 				filename = cl.getOptionValue("source");
 				uri = cl.getOptionValue("mongo");
 			} else {
-				System.out.println("Required options missing");
+				System.out.println("Usage: java -jar floowtest-0.1.jar -source <filename> -mongo <hostname:port>");
 				return;
 			}
 		} catch (ParseException e) {
@@ -55,12 +64,21 @@ public class TestMain {
 		
 		/*
 		 * If there isn't an existing record in the control collection for this file,
-		 * then we need to load it. If a record exists, another instance of the program
-		 * is loading or has loaded it.
+		 * then we need to create one and load the file. 
+		 * If a record exists, another instance of the program is loading or has loaded it.
 		 */
-		
 		Document ctrl = Util.getControlRecord(db, filehash);
 		if (ctrl == null) {
+
+			/* Check that file exists before we do anything else. */
+			Path path = Paths.get(filename);
+			if (!Files.exists(path) || !Files.isRegularFile(path)) {
+				System.out.println("File not present or not regular file.");
+				mongo.close();
+				return;
+			}
+			
+			logger.debug("Processing new file {}", filename);
 			Document d = new Document("key", filehash)
 					.append("filename", filename)
 					.append("status", Util.LOADING);
@@ -69,11 +87,20 @@ public class TestMain {
 			control.insertOne(d);
 			
 			FileProcessor fr = new FileProcessor();
-			fr.readFile(db, filehash, filename);
+			try {
+				fr.readFile(db, filehash, filename);
+			} catch (TestException e) {
+				System.out.println(e.getMessage());
+				mongo.close();
+				return;
+			}
 		}
-		
-		WordCounter count = new WordCounter(db);
-		count.doCount(filehash);
+
+		if(ctrl == null || 
+			(ctrl != null && !ctrl.getString("status").equals(Util.COMPLETE))) {
+			WordCounter count = new WordCounter(db);
+			count.doCount(filehash);
+		}
 
 		ResultQuery query = new ResultQuery(db, filehash);
 		query.printMostCommon();
@@ -81,33 +108,6 @@ public class TestMain {
 		query.printLeastCommon();
 
 		mongo.close();
+		logger.debug("Program end.");
 	}
-
-	/**
-	 * Check whether or not the supplied filename has an entry in the control collection.
-	 * 
-	 * @param mongo MongoClient instance
-	 * @param filename Name of file to check
-	 * @return true if file is already being loaded.
-	 *
-	private static boolean existingFile(MongoDatabase db, String filehash, String filename) {
-		boolean retval = true;
-
-		Document record = Util.getControlRecord(db, filehash);
-		if (record == null) {
-			System.out.println("New file so do the loading.");
-			Document d = new Document("key", filehash)
-					.append("filename", filename)
-					.append("status", Util.LOADING);
-
-			MongoCollection<Document> control = db.getCollection(Util.CONTROL);
-			control.insertOne(d);
-			retval = false;
-		} else {
-			System.out.println("Existing file, just run map-reduce.");
-			System.out.println(record.toString());
-		}
-
-		return retval;
-	}*/
 }

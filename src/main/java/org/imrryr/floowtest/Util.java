@@ -1,6 +1,4 @@
-/**
- * (c) Simon Beaver 2018
- */
+
 package org.imrryr.floowtest;
 
 import static com.mongodb.client.model.Filters.eq;
@@ -49,7 +47,6 @@ public class Util {
 	public static String hash(String input) {
 		String hex = new DigestUtils(MD5).digestAsHex(input);
 		String hash = "c" + hex;
-		System.out.println(hash);
 		return hash;
 	}
 

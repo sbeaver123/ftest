@@ -1,6 +1,4 @@
-/**
- * (c) Simon Beaver 2018
- */
+
 package org.imrryr.floowtest;
 
 import static com.mongodb.client.model.Filters.and;
@@ -13,6 +11,8 @@ import static com.mongodb.client.model.Updates.set;
 import java.util.Date;
 
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -26,9 +26,17 @@ import com.mongodb.client.model.MapReduceAction;
  */
 public class WordCounter {
 
+	/** Standard SLF4J logger. */
+	private static final Logger logger = LoggerFactory.getLogger(WordCounter.class);
+
 	/** MongoDatabase instance. */
 	private MongoDatabase db;
 
+	/**
+	 * Constructor
+	 * 
+	 * @param pDb MongoDatabase instance.
+	 */
 	public WordCounter (MongoDatabase pDb) {
 		db = pDb;
 	}
@@ -42,15 +50,8 @@ public class WordCounter {
 	public void doCount(String filehash) {
 
 		Document ctrl = Util.getControlRecord(db, filehash);
-		
-		/* Not ideal to test this here, but it simplifies
-		 * the control logic in the TestMain class. */
 		String status = ctrl.getString("status");
-		if(status.equals(Util.COMPLETE)) {
-			System.out.println("Map-reduce processing complete, no action required.");
-			return;
-		}
-		
+			
 		MongoCollection<Document> collection = db.getCollection(filehash);
 		
 		String results = filehash + "results";
@@ -66,7 +67,8 @@ public class WordCounter {
 		if (status.equals(Util.LOADCOMPLETE) && lastDate == null) {
 			/* File is loaded and no map-reduce processing has been done.
 			 * so run map-reduce against everything. */
-			System.out.println("Run map-reduce against everything.");
+			logger.debug("Run map-reduce against everything.");
+
 			/* Update last mr date anyway, in case other instances are running. */
 			updateMrDate(db, filehash, now);
 			
@@ -80,7 +82,8 @@ public class WordCounter {
 		} else if (status.equals(Util.LOADCOMPLETE) && lastDate != null) {
 			/* File is loaded and partially processed, so run map-reduce
 			 * against all records after the last run. */
-			System.out.println("Run map-reduce against everything since " + lastDate.toString());
+			logger.debug("Run map-reduce against everything since " + lastDate.toString());
+
 			/* Update last mr date anyway, in case other instances are running. */
 			updateMrDate(db, filehash, now);
 			
@@ -95,7 +98,8 @@ public class WordCounter {
 		} else if (status.equals(Util.LOADING) && lastDate == null) {
 			/* File is currently loading, and no map-reduce processing has been done,
 			 * so run map-reduce on all records before now. */
-			System.out.println("Run map-reduce against everything before " + now.toString());
+			logger.debug("Run map-reduce against everything before " + now.toString());
+
 			/* Update last mr date so other instances don't pick up same data. */
 			updateMrDate(db, filehash, now);
 
@@ -108,23 +112,24 @@ public class WordCounter {
 		} else if (status.equals(Util.LOADING) && lastDate != null) {
 			/* File is loading and some map-reduce processing has been done,
 			 * so run map-reduce against all records between last run and now. */
-			System.out.println("Run map-reduce against everything between " + lastDate.toString() + " and " + now.toString());
+			logger.debug("Run map-reduce against everything between " + lastDate.toString() + " and " + now.toString());
+
 			/* Update last mr date so other instances don't pick up same data. */
 			updateMrDate(db, filehash, now);
 
 			collection.mapReduce(getMapCmd(), getReduceCmd())
-			.filter(and(lte("loaded", now), gt("loaded", lastDate)))
-			.action(MapReduceAction.REDUCE)
-			.collectionName(results)
-			.first();
+				.filter(and(lte("loaded", now), gt("loaded", lastDate)))
+				.action(MapReduceAction.REDUCE)
+				.collectionName(results)
+				.first();
 		}
 	}
 
 	/**
 	 * Update the control record with a new last processed date.
 	 * @param db MongoDatabase instance.
-	 * @param filehash
-	 * @param date
+	 * @param filehash Hash string identifying the file being processed
+	 * @param date Last date/time for which map-reduce results have been processed
 	 */
 	private void updateMrDate(MongoDatabase db, String filehash, Date date) {
 		MongoCollection<Document> control = db.getCollection(Util.CONTROL);
